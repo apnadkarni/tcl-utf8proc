@@ -1,0 +1,81 @@
+#------------------------------------------------------------- -*- makefile -*-
+#
+# Sample makefile for building Tcl extensions.
+#
+# Basic build, test and install
+#   nmake /f makefile.vc INSTALLDIR=c:\path\to\tcl
+#   nmake /f makefile.vc INSTALLDIR=c:\path\to\tcl test
+#   nmake /f makefile.vc INSTALLDIR=c:\path\to\tcl install
+#
+# For other build options (debug, static etc.),
+# See TIP 477 (https://core.tcl-lang.org/tips/doc/main/tip/477.md) for
+# detailed documentation.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+#------------------------------------------------------------------------------
+
+# The name of the package
+PROJECT = utf8proc
+
+!include "rules-ext.vc"
+
+UTF8PROCDIR=$(ROOT)\utf8proc
+
+# Define the object files and resource file that make up the extension.
+# Note the resource file does not makes sense if doing a static library build
+# hence it is under that condition. TMP_DIR is the output directory
+# defined by rules for object files.
+PRJ_OBJS = \
+	$(TMP_DIR)\utf8proc.obj \
+	$(TMP_DIR)\tclUtf8Proc.obj \
+	$(TMP_DIR)\tclUtf8ProcBuildInfo.obj
+
+PRJ_INCLUDES = -I$(TMP_DIR) -I$(UTF8PROCDIR)
+
+# Define any additional compiler flags that might be required for the project
+# PRJ_DEFINES = -D_CRT_SECURE_NO_DEPRECATE
+PRJ_DEFINES = -DUTF8PROC_EXPORTS
+
+# Define the standard targets
+!include "$(_RULESDIR)\targets.vc"
+
+# We must define a pkgindex target that will create a pkgIndex.tcl
+# file in the $(OUT_DIR) directory. We can just redirect to the
+# default-pkgindex-tea target assuming the pkgIndex is same across
+# platforms.
+pkgindex: default-pkgindex-tea
+
+# Uncomment following if there is documentation to be copied
+# and layed out as per TEA.
+# install: default-install-docs-n default-install-docs-html
+
+# Use manifest file which defines commit id for build-info command
+$(TMP_DIR)\manifest.uuid:
+!IF EXIST($(ROOT)\manifest.uuid)
+	@copy "$(ROOT)\manifest.uuid" "$(TMP_DIR)\manifest.uuid"
+!ELSE
+!IF EXIST($(ROOT)\.git)
+	@echo puts -nonewline git- | "$(TCLSH)" >$(TMP_DIR)\manifest.uuid
+	@git rev-parse HEAD >>$(TMP_DIR)\manifest.uuid || echo git-unknown >$(TMP_DIR)\manifest.uuid
+!ELSE
+	@echo unknown >$(TMP_DIR)\manifest.uuid
+!ENDIF
+!ENDIF
+
+$(TMP_DIR)\tclUtf8ProcUuid.h: $(TMP_DIR)\manifest.uuid
+	@echo #define TCLUTF8PROC_VERSION_UUID \> $(TMP_DIR)\tclUtf8ProcUuid.h
+	@type $(TMP_DIR)\manifest.uuid >> $(TMP_DIR)\tclUtf8ProcUuid.h
+	@echo:>>$(TMP_DIR)\tclUtf8ProcUuid.h
+
+{$(UTF8PROCDIR)}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+# Explicit dependency rules
+$(GENERICDIR)\tclUtf8Proc.h : $(UTF8PROCDIR)\utf8proc.h
+$(GENERICDIR)\tclUtf8Proc.c : $(GENERICDIR)\tclUtf8Proc.h
+$(GENERICDIR)\tclUtf8ProcBuildInfo.c : $(GENERICDIR)\tclUtf8Proc.h $(TMP_DIR)\tclUtf8ProcUuid.h
+$(UTF8PROCDIR)\utf8proc.c : $(UTF8PROCDIR)\utf8proc.h

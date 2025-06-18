@@ -1,6 +1,11 @@
+The files under the utf8proc directory are covered by the terms in the
+file LICENSE.md in that directory.
+
+All other files are covered by the license below.
+
 BSD 2-Clause License
 
-Copyright (c) 2025, apnadkarni
+Copyright (c) 2025, Ashok P. Nadkarni
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:

@@ -1,0 +1,21 @@
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+
+if {[lsearch [namespace children] ::tcltest] == -1} {
+    package require tcltest
+    namespace import ::tcltest::*
+}
+
+package require utf8proc
+
+namespace eval utf8proc::test {
+    # Only a sample test! Does not test all build-info commands.
+    test build-info-1.1 {build-info command} -body {
+        utf8proc::build-info
+    } -result * -match glob
+}
+
+
+::tcltest::cleanupTests
+namespace delete utf8proc::test
+return
