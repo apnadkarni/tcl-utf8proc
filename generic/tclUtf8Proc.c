@@ -69,13 +69,13 @@ Tcl_UnicodeVersionObjCmd(
 /*
  * Tcl_UnicodeNormalizeObjCmd --
  *
- *	 Description of the command.
+ *	 Implements the "normalize" command for Unicode normalization.
  *
  * Results:
  *	A standard Tcl result
  *
  * Side effects:
- *	None.
+ *	Sets the interpreter result to the normalized string.
  */
 
 static int
@@ -197,6 +197,65 @@ Tcl_UnicodeNormalizeObjCmd(
 }
 
 /*
+ * Tcl_UnicodeCategorizeObjCmd --
+ *
+ *	 Implements the "categorize" command.
+ *
+ * Results:
+ *	A standard Tcl result
+ *
+ * Side effects:
+ *	Sets the interpreter result to a list of Unicode categories.
+ */
+
+static int
+Tcl_UnicodeCategorizeObjCmd(
+    void *dummy,		/* Not used. */
+    Tcl_Interp *interp,		/* Current interpreter */
+    int objc,			/* Number of arguments */
+    Tcl_Obj *const objv[]	/* Argument strings */
+    )
+{
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "STRING");
+        return TCL_ERROR;
+    }
+
+    Tcl_Obj *categoryObjs[31]; /* 30 categories + one for out of range */
+    for (int i = 0; i < sizeof(categoryObjs)/sizeof(categoryObjs[0]); ++i) {
+        categoryObjs[i] = NULL;
+    }
+
+    Tcl_Obj *srcObj = objv[1];
+    Tcl_Size len = Tcl_GetCharLength(srcObj);
+    Tcl_Obj *resultList = Tcl_NewListObj(len, NULL);
+    for (int i = 0; i < len; ++i) {
+        Tcl_UniChar uc = Tcl_GetUniChar(srcObj, i);
+        utf8proc_category_t category;
+        if (uc < 0 || uc > 0x10FFFF) {
+            category = 30;
+            if (categoryObjs[30] == NULL) {
+                categoryObjs[30] = Tcl_NewStringObj("??", -1);
+            }
+        } else {
+            category = utf8proc_category(uc);
+            if (categoryObjs[category] == NULL) {
+                categoryObjs[category] =
+                    Tcl_NewStringObj(utf8proc_category_string(category), -1);
+            }
+        }
+        Tcl_ListObjAppendElement(interp, resultList, categoryObjs[category]);
+    }
+    for (int i = 0; i < sizeof(categoryObjs)/sizeof(categoryObjs[0]); ++i) {
+        if (categoryObjs[i] != NULL) {
+	    Tcl_BounceRefCount(categoryObjs[i]);
+	}
+    }
+    Tcl_SetObjResult(interp, resultList);
+    return TCL_OK;
+}
+
+/*
  * MyExtension_Init --
  *
  *	Initialize the extension etc.
@@ -231,6 +290,7 @@ Utf8proc_Init(
     Tcl_CreateObjCommand(interp, PACKAGE_NAME "::" "unicodeversion", Tcl_UnicodeVersionObjCmd, NULL, NULL);
     Tcl_CreateObjCommand(interp, PACKAGE_NAME "::" "build-info", BuildInfoObjCmd, NULL, NULL);
     Tcl_CreateObjCommand(interp, PACKAGE_NAME "::" "normalize", Tcl_UnicodeNormalizeObjCmd, NULL, NULL);
+    Tcl_CreateObjCommand(interp, PACKAGE_NAME "::" "categorize", Tcl_UnicodeCategorizeObjCmd, NULL, NULL);
 
 
     /* Register feature configuration  */

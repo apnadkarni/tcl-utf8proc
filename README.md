@@ -10,11 +10,23 @@ The package supports Tcl 9. There is no plan to support Tcl 8.
 
 ```
 package require utf8proc
-utf8proc::normalize ?-mode MODE? ?-profile PROFILE? STRING
 utf8proc::build-info ?commit|compiler|version|patchlevel?
+utf8proc::categorize STRING
+utf8proc::normalize ?-mode MODE? ?-profile PROFILE? STRING
 utf8proc::pkgconfig ?list | get KEY?
 utf8proc::unicodeversion
 ```
+
+### build-info
+The `build-info` command returns build information for the extension in
+the same form as the Tcl `tcl::build-info` command.
+
+### categorize
+
+Returns a list of categories, each element of which is a category code for
+each letter in the passed string. The category codes are as defined in
+[Table 4-4](https://www.unicode.org/versions/Unicode16.0.0/core-spec/chapter-4/#G134153)
+of the Unicode Standard or the string `??` for code points that are invalid.
 
 ### normalize
 The `normalize` command converts the passed string to normalization form
@@ -22,10 +34,6 @@ specified by the `-mode` option. `MODE` must be one of `NFC`, `NFD`, `NFKC`
 or `NFKD` as specified by the Unicode standard and defaults to `NFC`. The
 `-profile` option has the same semantics as that in Tcl's `encoding` command
 but will only accept `strict` (default) and `replace` as valid values.
-
-### build-info
-The `build-info` command returns build information for the extension in
-the same form as the Tcl `tcl::build-info` command.
 
 ### pkginfo
 The `pkginfo` command is analogous to the `tcl::pkginfo` command. Supported
