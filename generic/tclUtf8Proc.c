@@ -37,7 +37,7 @@
  */
 Tcl_Config utf8procConfig[] = {
     {"version", PACKAGE_VERSION},
-    {"utf8proc_version", UTF8PROCLIBVERSION},
+    {"libversion", UTF8PROCLIBVERSION},
     /* Add additional configuration or feature information if relevant */
     {NULL, NULL}
 };
@@ -228,7 +228,7 @@ Utf8proc_Init(
     /*
      * Register the commands added by the package.
      */
-    Tcl_CreateObjCommand(interp, PACKAGE_NAME "::" "version", Tcl_UnicodeVersionObjCmd, NULL, NULL);
+    Tcl_CreateObjCommand(interp, PACKAGE_NAME "::" "unicodeversion", Tcl_UnicodeVersionObjCmd, NULL, NULL);
     Tcl_CreateObjCommand(interp, PACKAGE_NAME "::" "build-info", BuildInfoObjCmd, NULL, NULL);
     Tcl_CreateObjCommand(interp, PACKAGE_NAME "::" "normalize", Tcl_UnicodeNormalizeObjCmd, NULL, NULL);
 
