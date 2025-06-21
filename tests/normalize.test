@@ -1,0 +1,117 @@
+# See the file LICENSE for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+
+if {[lsearch [namespace children] ::tcltest] == -1} {
+    package require tcltest
+    namespace import ::tcltest::*
+}
+
+package require utf8proc
+
+
+namespace eval utf8proc::test {
+    variable testData
+    variable testDataFile [file join [file dirname [info script]] NormalizationTest.txt]
+    tcltest::testConstraint normalization [file exists $testDataFile]
+
+    proc hexListToChars {s} {
+        # 0044 030c -> \u0044\u030c
+        subst -novariables -nocommands \\U[join $s \\U]
+    }
+    proc readNormalizationData {} {
+        variable testData
+        variable testCase
+        variable testDataFile
+        set fd [open $testDataFile]
+        fconfigure $fd -encoding utf-8
+        set lineno 0; # Start numbering as line number 1
+        set testData {}
+        while {[gets $fd line] >= 0} {
+            incr lineno
+            set line [string trim $line]
+            if {[string index $line 0] in {{} # @}} {
+                continue
+            }
+            # Form list of {lineno chars nfcform nfdform nfkfcform nfkdform}
+            lappend testData [list $lineno \
+                                  {*}[lmap v [lrange [split $line \;] 0 4] {
+                hexListToChars $v
+            }]]
+        }
+        proc readNormalizationData {} {}; # Only read once
+    }
+    interp alias {} toNFC {} utf8proc::normalize -mode nfc
+    interp alias {} toNFD {} utf8proc::normalize -mode nfd
+    interp alias {} toNFKC {} utf8proc::normalize -mode nfkc
+    interp alias {} toNFKD {} utf8proc::normalize -mode nfkd
+
+    readNormalizationData
+    foreach testCase $testData {
+        #puts $testCase
+        lassign $testCase lineno chars nfc nfd nfkc nfkd
+        test normalize-line-$lineno-nfc \
+            "Test case for NFC at line $lineno of $testDataFile" \
+            -constraints normalization \
+            -setup {
+                readNormalizationData
+            } -body {
+                # See Comments in NormalizationTest.txt for expected behaviours
+                list \
+                    [string equal $nfc [toNFC $chars]] \
+                    [string equal $nfc [toNFC $nfc]] \
+                    [string equal $nfc [toNFC $nfd]] \
+                    [string equal $nfkc [toNFC $nfkc]] \
+                    [string equal $nfkc [toNFC $nfkd]]
+            } -result {1 1 1 1 1}
+
+        test normalize-line-$lineno-nfd \
+            "Test case for NFD at line $lineno of $testDataFile" \
+            -constraints normalization \
+            -setup {
+                readNormalizationData
+            } -body {
+                # See Comments in NormalizationTest.txt for expected behaviours
+                list \
+                    [string equal $nfd [toNFD $chars]] \
+                    [string equal $nfd [toNFD $nfc]] \
+                    [string equal $nfd [toNFD $nfd]] \
+                    [string equal $nfkd [toNFD $nfkc]] \
+                    [string equal $nfkd [toNFD $nfkd]]
+            } -result {1 1 1 1 1}
+
+        test normalize-line-$lineno-nfkc \
+            "Test case for NFKC at line $lineno of $testDataFile" \
+            -constraints normalization \
+            -setup {
+                readNormalizationData
+            } -body {
+                # See Comments in NormalizationTest.txt for expected behaviours
+                list \
+                    [string equal $nfkc [toNFKC $chars]] \
+                    [string equal $nfkc [toNFKC $nfc]] \
+                    [string equal $nfkc [toNFKC $nfd]] \
+                    [string equal $nfkc [toNFKC $nfkc]] \
+                    [string equal $nfkc [toNFKC $nfkd]]
+            } -result {1 1 1 1 1}
+
+        test normalize-line-$lineno-nfkd \
+            "Test case for NFKD at line $lineno of $testDataFile" \
+            -constraints normalization \
+            -setup {
+                readNormalizationData
+            } -body {
+                # See Comments in NormalizationTest.txt for expected behaviours
+                list \
+                    [string equal $nfkd [toNFKD $chars]] \
+                    [string equal $nfkd [toNFKD $nfc]] \
+                    [string equal $nfkd [toNFKD $nfd]] \
+                    [string equal $nfkd [toNFKD $nfkc]] \
+                    [string equal $nfkd [toNFKD $nfkd]]
+            } -result {1 1 1 1 1}
+    }
+}
+
+
+::tcltest::cleanupTests
+namespace delete utf8proc::test
+return
