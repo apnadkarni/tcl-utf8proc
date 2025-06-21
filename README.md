@@ -6,6 +6,8 @@ implements various Unicode operations on UTF-8 encoded data.
 
 The package supports Tcl 9. There is no plan to support Tcl 8.
 
+See file LICENSE for licensing terms.
+
 ## Usage
 
 ```
@@ -24,8 +26,10 @@ the same form as the Tcl `tcl::build-info` command.
 ### categorize
 
 Returns a list of categories, each element of which is a category code for
-each letter in the passed string. The category codes are as defined in
-[Table 4-4](https://www.unicode.org/versions/Unicode16.0.0/core-spec/chapter-4/#G134153)
+each letter in the passed string. The category codes may be one of
+"Cn","Lu","Ll","Lt","Lm","Lo","Mn","Mc","Me","Nd","Nl","No","Pc","Pd","Ps",
+"Pe","Pi","Pf","Po","Sm","Sc","Sk","So","Zs","Zl","Zp","Cc","Cf","Cs" or "Co"
+as defined in [Table 4-4](https://www.unicode.org/versions/Unicode16.0.0/core-spec/chapter-4/#G134153)
 of the Unicode Standard or the string `??` for code points that are invalid.
 
 ### normalize

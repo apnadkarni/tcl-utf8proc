@@ -3,7 +3,7 @@
  *
  * Main file for the utf8proc Tcl extension.
  *
- * See the file "license.terms" for information on usage and redistribution
+ * See the file LICENSE for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
  */
@@ -256,7 +256,66 @@ Tcl_UnicodeCategorizeObjCmd(
 }
 
 /*
- * MyExtension_Init --
+ * Tcl_UnicodeMakeRawObjCmd --
+ *
+ *	Implements the "makerawobj" command. USE ONLY FOR TESTING. Exists
+ *	to check behaviour on invalid data passed in via C API.
+ *
+ * Results:
+ *	A standard Tcl result
+ *
+ * Side effects:
+ *	Sets the interpreter result to a Tcl object containing raw data.
+ */
+static int
+Tcl_UnicodeMakeRawObjCmd(
+    void *dummy,		/* Not used. */
+    Tcl_Interp *interp,		/* Current interpreter */
+    int objc,			/* Number of arguments */
+    Tcl_Obj *const objv[]	/* Argument strings */
+    )
+{
+    if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 1, objv, "string|unistring BINARY");
+        return TCL_ERROR;
+    }
+
+    Tcl_Size numBytes;
+    unsigned char *bytes = Tcl_GetBytesFromObj(interp, objv[2], &numBytes);
+    if (bytes == NULL) {
+	return TCL_ERROR;
+    }
+    const char *opt = Tcl_GetString(objv[1]);
+    Tcl_Obj *resultObj;
+    if (!strcmp(opt, "string")) {
+        resultObj = Tcl_NewStringObj((const char *)bytes, numBytes);
+    } else if (!strcmp(opt, "unistring")) {
+	if (numBytes % sizeof(Tcl_UniChar) != 0) {
+            Tcl_SetObjResult(
+                interp,
+                Tcl_ObjPrintf("Invalid byte length %" TCL_SIZE_MODIFIER "u"
+                              " for unistring. Must be "
+                              "a multiple of %" TCL_SIZE_MODIFIER "u.",
+                              numBytes,
+                              sizeof(Tcl_UniChar)));
+							     return TCL_ERROR;
+	}
+        resultObj = Tcl_NewUnicodeObj((const Tcl_UniChar *)bytes,
+                                         numBytes / sizeof(Tcl_UniChar));
+    } else {
+        Tcl_SetObjResult(
+            interp,
+            Tcl_ObjPrintf(
+                "Unknown option \"%s\". Must be \"string\" or \"unistring\".",
+                opt));
+        return TCL_ERROR;
+    }
+    Tcl_SetObjResult(interp, resultObj);
+    return TCL_OK;
+}
+
+/*
+ * Utf8proc_Init --
  *
  *	Initialize the extension etc.
  *
@@ -291,6 +350,7 @@ Utf8proc_Init(
     Tcl_CreateObjCommand(interp, PACKAGE_NAME "::" "build-info", BuildInfoObjCmd, NULL, NULL);
     Tcl_CreateObjCommand(interp, PACKAGE_NAME "::" "normalize", Tcl_UnicodeNormalizeObjCmd, NULL, NULL);
     Tcl_CreateObjCommand(interp, PACKAGE_NAME "::" "categorize", Tcl_UnicodeCategorizeObjCmd, NULL, NULL);
+    Tcl_CreateObjCommand(interp, PACKAGE_NAME "::" "test::makerawobj", Tcl_UnicodeMakeRawObjCmd, NULL, NULL);
 
 
     /* Register feature configuration  */
