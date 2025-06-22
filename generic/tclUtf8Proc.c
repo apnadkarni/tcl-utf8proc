@@ -10,6 +10,7 @@
 
 #include "tclUtf8Proc.h"
 #include <string.h>
+#include <assert.h>
 
 #define STRINGIZEx(x) #x
 #define STRINGIZE(x) STRINGIZEx(x)
@@ -148,41 +149,43 @@ Tcl_UnicodeNormalizeObjCmd(
                 Tcl_GetString(objv[objc - 1]), -1, profile, &ds, NULL);
     /* !!! dsIn needs to be freed even in case of error returns */
 
-    /*
-     * TODO - Use underlying utf8proc_map with appropriate flags for
-     * efficiency, for example explicitly passing the lengths.
-     */
     if (result != TCL_OK) {
         result = TCL_ERROR; /* Translate TCL_CONVERT_* errors to TCL_ERROR */
     } else {
+	Tcl_Size dsLength = Tcl_DStringLength(&ds);
+        const utf8proc_uint8_t *dsStr = (utf8proc_uint8_t *) Tcl_DStringValue(&ds);
         const utf8proc_uint8_t *normalizedUtf8;
+        utf8proc_ssize_t normalizedLength;
         switch (mode) {
         case MODE_NFC:
-            normalizedUtf8 =
-                utf8proc_NFC((const utf8proc_uint8_t *)Tcl_DStringValue(&ds));
+            normalizedLength = utf8proc_map_custom(
+                dsStr, dsLength, &normalizedUtf8, UTF8PROC_STABLE|UTF8PROC_COMPOSE, NULL, NULL);
             break;
         case MODE_NFD:
-            normalizedUtf8 =
-                utf8proc_NFD((const utf8proc_uint8_t *)Tcl_DStringValue(&ds));
+            normalizedLength = utf8proc_map_custom(
+                dsStr, dsLength, &normalizedUtf8, UTF8PROC_STABLE|UTF8PROC_DECOMPOSE, NULL, NULL);
             break;
         case MODE_NFKC:
-            normalizedUtf8 = utf8proc_NFKC(
-                (const utf8proc_uint8_t *)Tcl_DStringValue(&ds));
+            normalizedLength = utf8proc_map_custom(
+                dsStr, dsLength, &normalizedUtf8, UTF8PROC_STABLE|UTF8PROC_COMPOSE|UTF8PROC_COMPAT, NULL, NULL);
             break;
         case MODE_NFKD:
-            normalizedUtf8 = utf8proc_NFKD(
-                (const utf8proc_uint8_t *)Tcl_DStringValue(&ds));
+            normalizedLength = utf8proc_map_custom(
+                dsStr, dsLength, &normalizedUtf8, UTF8PROC_STABLE|UTF8PROC_DECOMPOSE|UTF8PROC_COMPAT, NULL, NULL);
             break;
         }
-	if (normalizedUtf8 == NULL) {
+	if (normalizedLength < 0) {
+            const char *errorMsg = utf8proc_errmsg(normalizedLength);
+            Tcl_SetObjResult(
+                interp, Tcl_NewStringObj(
+                    errorMsg ? errorMsg : "Unicode normalization failed.", -1));
             result = TCL_ERROR;
-            /* No way to get back error detail. */
-            Tcl_SetResult(interp, "Unicode normalization failed", TCL_STATIC);
         } else {
             /* Convert standard UTF8 to internal UTF8 */
+            assert(normalizedUtf8);
             Tcl_DStringSetLength(&ds, 0);
-            result = Tcl_UtfToExternalDStringEx(interp, encoding,
-                (const char *)normalizedUtf8, -1, profile, &ds, NULL);
+            result = Tcl_ExternalToUtfDStringEx(interp, encoding,
+                (const char *)normalizedUtf8, normalizedLength, profile, &ds, NULL);
             free(normalizedUtf8);
 	    if (result == TCL_OK) {
                 Tcl_DStringResult(interp, &ds);

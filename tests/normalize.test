@@ -8,10 +8,12 @@ if {[lsearch [namespace children] ::tcltest] == -1} {
 
 package require utf8proc
 
-
 namespace eval utf8proc::test {
-    variable testData
+    variable testData {}
     variable testDataFile [file join [file dirname [info script]] NormalizationTest.txt]
+    variable singleFormChar
+    variable singleFormChars {}
+
     tcltest::testConstraint normalization [file exists $testDataFile]
 
     proc hexListToChars {s} {
@@ -22,22 +24,51 @@ namespace eval utf8proc::test {
         variable testData
         variable testCase
         variable testDataFile
+        variable singleFormChars
+
         set fd [open $testDataFile]
         fconfigure $fd -encoding utf-8
         set lineno 0; # Start numbering as line number 1
         set testData {}
+        set inPart1 0
+        set prevPart1Char -1
         while {[gets $fd line] >= 0} {
             incr lineno
             set line [string trim $line]
-            if {[string index $line 0] in {{} # @}} {
+            if {[string index $line 0] in {{} #}} {
+                continue
+            }
+            if {[regexp -nocase {^@part(\d+)} $line -> partNum]} {
+                set inPart1 [expr {$partNum == 1}]
                 continue
             }
             # Form list of {lineno chars nfcform nfdform nfkfcform nfkdform}
+            set fields [lrange [split $line \;] 0 4]
             lappend testData [list $lineno \
-                                  {*}[lmap v [lrange [split $line \;] 0 4] {
+                                  {*}[lmap v $fields {
                 hexListToChars $v
             }]]
+            # Characters that are not listed in part1 need to be tested that they
+            # map to themselves.
+            if {$inPart1} {
+                set thisChar [scan [lindex $fields 0] %x]
+                # We assume the file is in order!
+                if {$thisChar <= $prevPart1Char} {
+                    puts stderr "Warning: Part 1 lines in $testDataFile do not seem sorted by codepoint!"
+                }
+                while {[incr prevPart1Char] != $thisChar} {
+                    if {$prevPart1Char >= 0xD800 && $prevPart1Char <= 0xDFFF} {
+                        continue; # Surrogates
+                    }
+                    lappend singleFormChars [hexListToChars [format %x $prevPart1Char]]
+                }
+                set prevPart1Char $thisChar
+            }
         }
+        while {[incr prevPart1Char] <= 0x10ffff} {
+            lappend singleFormChars [hexListToChars [format %x $prevPart1Char]]
+        }
+
         proc readNormalizationData {} {}; # Only read once
     }
     interp alias {} toNFC {} utf8proc::normalize -mode nfc
@@ -45,16 +76,16 @@ namespace eval utf8proc::test {
     interp alias {} toNFKC {} utf8proc::normalize -mode nfkc
     interp alias {} toNFKD {} utf8proc::normalize -mode nfkd
 
-    readNormalizationData
+    if {[tcltest::testConstraint normalization]} {
+        readNormalizationData
+    }
     foreach testCase $testData {
         #puts $testCase
         lassign $testCase lineno chars nfc nfd nfkc nfkd
         test normalize-line-$lineno-nfc \
             "Test case for NFC at line $lineno of $testDataFile" \
             -constraints normalization \
-            -setup {
-                readNormalizationData
-            } -body {
+            -body {
                 # See Comments in NormalizationTest.txt for expected behaviours
                 list \
                     [string equal $nfc [toNFC $chars]] \
@@ -109,6 +140,24 @@ namespace eval utf8proc::test {
                     [string equal $nfkd [toNFKD $nfkd]]
             } -result {1 1 1 1 1}
     }
+
+    # Each single form character should map to itself for all forms
+    test normalize-singleform-0 "Normalize single form characters" \
+        -constraints normalization \
+        -body {
+            lmap singleFormChar $singleFormChars {
+                if {[tcl::mathop::eq \
+                         $singleFormChar \
+                         [toNFC $singleFormChar] \
+                         [toNFD $singleFormChar] \
+                         [toNFKC $singleFormChar] \
+                         [toNFKD $singleFormChar] \
+                        ]} {
+                    continue
+                }
+                set singleFormChar
+            }
+        } -result {}
 }
 
 
