@@ -34,8 +34,13 @@ of the Unicode Standard or the string `??` for code points that are invalid.
 
 ### normalize
 The `normalize` command converts the passed string to normalization form
-specified by the `-mode` option. `MODE` must be one of `NFC`, `NFD`, `NFKC`
-or `NFKD` as specified by the Unicode standard and defaults to `NFC`. The
+specified by the `-mode` option.
+
+`MODE` must be one of `nfc`, `nfd`, `nfkc`, `nfkd` or `nfkccasefold` and
+defaults to `NFC`. See [Unicode normalization forms](https://www.unicode.org/versions/Unicode16.0.0/core-spec/chapter-3/#G49537)
+and [Unicode case folding](https://www.unicode.org/versions/Unicode16.0.0/core-spec/chapter-3/#G53288).
+
+The
 `-profile` option has the same semantics as that in Tcl's `encoding` command
 but will only accept `strict` (default) and `replace` as valid values.
 

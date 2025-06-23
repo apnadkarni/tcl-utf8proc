@@ -88,8 +88,15 @@ Tcl_UnicodeNormalizeObjCmd(
     )
 {
     static const char *normalizationForms[] = {
-        "nfc", "nfd", "nfkc", "nfkd", NULL};
-    typedef enum { MODE_NFC, MODE_NFD, MODE_NFKC, MODE_NFKD } NormalizationMode;
+        "nfc", "nfd", "nfkc", "nfkd", "nfkccasefold", NULL
+    };
+    typedef enum {
+        MODE_NFC,
+        MODE_NFD,
+        MODE_NFKC,
+        MODE_NFKD,
+        MODE_NFKC_CASEFOLD
+    } NormalizationMode;
     static const char *optNames[] = {"-profile", "-mode", NULL};
     enum { OPT_PROFILE, OPT_MODE } opt;
 
@@ -172,6 +179,10 @@ Tcl_UnicodeNormalizeObjCmd(
         case MODE_NFKD:
             normalizedLength = utf8proc_map_custom(
                 dsStr, dsLength, &normalizedUtf8, UTF8PROC_STABLE|UTF8PROC_DECOMPOSE|UTF8PROC_COMPAT, NULL, NULL);
+            break;
+        case MODE_NFKC_CASEFOLD:
+            normalizedLength = utf8proc_map_custom(
+                dsStr, dsLength, &normalizedUtf8, UTF8PROC_STABLE|UTF8PROC_COMPOSE|UTF8PROC_COMPAT|UTF8PROC_CASEFOLD|UTF8PROC_IGNORE, NULL, NULL);
             break;
         }
 	if (normalizedLength < 0) {
