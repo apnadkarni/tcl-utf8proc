@@ -163,29 +163,29 @@ Tcl_UnicodeNormalizeObjCmd(
         const utf8proc_uint8_t *dsStr = (utf8proc_uint8_t *) Tcl_DStringValue(&ds);
         const utf8proc_uint8_t *normalizedUtf8;
         utf8proc_ssize_t normalizedLength;
+        utf8proc_option_t options = UTF8PROC_STABLE;
         switch (mode) {
         case MODE_NFC:
-            normalizedLength = utf8proc_map_custom(
-                dsStr, dsLength, &normalizedUtf8, UTF8PROC_STABLE|UTF8PROC_COMPOSE, NULL, NULL);
+            options |= UTF8PROC_COMPOSE;
             break;
         case MODE_NFD:
-            normalizedLength = utf8proc_map_custom(
-                dsStr, dsLength, &normalizedUtf8, UTF8PROC_STABLE|UTF8PROC_DECOMPOSE, NULL, NULL);
+            options |= UTF8PROC_DECOMPOSE;
             break;
         case MODE_NFKC:
-            normalizedLength = utf8proc_map_custom(
-                dsStr, dsLength, &normalizedUtf8, UTF8PROC_STABLE|UTF8PROC_COMPOSE|UTF8PROC_COMPAT, NULL, NULL);
+            options |= UTF8PROC_COMPOSE|UTF8PROC_COMPAT;
             break;
         case MODE_NFKD:
-            normalizedLength = utf8proc_map_custom(
-                dsStr, dsLength, &normalizedUtf8, UTF8PROC_STABLE|UTF8PROC_DECOMPOSE|UTF8PROC_COMPAT, NULL, NULL);
+            options |= UTF8PROC_DECOMPOSE|UTF8PROC_COMPAT;
             break;
         case MODE_NFKC_CASEFOLD:
-            normalizedLength = utf8proc_map_custom(
-                dsStr, dsLength, &normalizedUtf8, UTF8PROC_STABLE|UTF8PROC_COMPOSE|UTF8PROC_COMPAT|UTF8PROC_CASEFOLD|UTF8PROC_IGNORE, NULL, NULL);
+            options |= UTF8PROC_COMPOSE | UTF8PROC_COMPAT | UTF8PROC_CASEFOLD
+                     | UTF8PROC_IGNORE;
             break;
         }
-	if (normalizedLength < 0) {
+        normalizedLength = utf8proc_map_custom( dsStr, dsLength,
+            &normalizedUtf8, options, NULL, NULL);
+
+        if (normalizedLength < 0) {
             const char *errorMsg = utf8proc_errmsg(normalizedLength);
             Tcl_SetObjResult(
                 interp, Tcl_NewStringObj(
