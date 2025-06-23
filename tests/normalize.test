@@ -111,13 +111,14 @@ namespace eval utf8proc::test {
             }
             # Some entries may be ranges of chars xxxx..yyyy
             set rangeOfChars [regexp -inline -all {[[:xdigit:]]+} $rangeOfChars]; # xxxx..yyyy
-            foreach chars $rangeOfChars {
+            foreach codePoint [lseq 0x[lindex $rangeOfChars 0] .. 0x[lindex $rangeOfChars end]] {
+                set chars [format %c $codePoint]
                 # Some chars are ignored in case folds
                 if {$casefoldedchars eq ""} {
                     # Mapping column empty. Reserved chars map to themselves.
                     # Otherwise, character is ignored by folding algorithm
                     if {[string match *reserved* $line]} {
-                        set expected [hexListToChars $chars]
+                        set expected $chars
                     } else {
                         set expected {}
                     }
@@ -125,18 +126,17 @@ namespace eval utf8proc::test {
                     set expected [hexListToChars $casefoldedchars]
                 }
                 lappend caseFoldData \
-                    [list $lineno [hexListToChars $chars] $expected]
+                    [list $lineno $chars $expected]
 
                 # Characters that are not listed need to be tested that
                 # they map to themselves.
-                set thisCodePoint [scan $chars %x]
                 # We assume the file is in order!
-                if {$thisCodePoint <= $prevCodePoint} {
+                if {$codePoint <= $prevCodePoint} {
                     puts stderr "Warning: Part 1 lines in $caseFoldDataFile do not seem sorted by codepoint!"
-                    puts stderr "Line $lineno ($thisCodePoint <= $prevCodePoint)"
+                    puts stderr "Line $lineno ($codePoint <= $prevCodePoint)"
                     exit
                 }
-                while {[incr prevCodePoint] < $thisCodePoint} {
+                while {[incr prevCodePoint] < $codePoint} {
                     if {$prevCodePoint >= 0xD800 && $prevCodePoint <= 0xDFFF} {
                         continue; # Surrogates
                     }
@@ -249,9 +249,26 @@ namespace eval utf8proc::test {
             -body {
                 # puts [codepoints $chars]->[codepoints $casefoldedchars]
                 # See Comments in DerivedNormalizationProps.txt for expected behaviours
-                string equal [toNFKC_Casefold $chars] $casefoldedchars
-            } -result 1
+                toNFKC_Casefold $chars
+            } -result $casefoldedchars
     }
+    # Characters that should case fold to themselves
+    proc codepoints {s} {join [lmap c [split $s ""] {
+        string cat U+ [format %.6X [scan $c %c]]}]
+    }
+    test normalize-casefold-identities-0 \
+        "NFKC Case fold chars mapping to themselves" \
+        -constraints casefolding \
+        -body {
+            lmap char $caseFoldIdentities {
+                if {$char eq [toNFKC_Casefold $char]} {
+                    continue
+                }
+                # puts [codepoints $char]
+                # puts [codepoints [toNFKC_Casefold $char]]
+                set char
+            }
+        } -result {}
 
     # Profiles
     test normalize-profile-strict-0 "Normalize -profile strict success" -body {
